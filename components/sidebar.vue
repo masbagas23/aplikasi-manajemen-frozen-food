@@ -94,7 +94,9 @@
                 </div>
 
                 <!-- Content -->
-                <slot />
+                <div class="border shadow-lg px-5 py-10">
+                  <slot />
+                </div>
               </div>
             </div>
             <!-- Do not cross the closing tag underneath this coment-->

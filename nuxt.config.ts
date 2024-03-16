@@ -1,5 +1,3 @@
-import path from 'path'
-
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   modules: [
@@ -7,7 +5,11 @@ export default defineNuxtConfig({
     '@nuxt/image',
     'nuxt-icon',
     '@pinia/nuxt',
+    'nuxt-lodash',
   ],
+  lodash: {
+    prefix: '_',
+  },
   auth: {
     globalAppMiddleware: {
       isEnabled: true,
