@@ -1,4 +1,3 @@
-import { reactive } from 'vue'
 import User from '~/db/models/user.d'
 import { Op } from 'sequelize'
 import _ from 'lodash'
@@ -34,7 +33,7 @@ export default defineEventHandler(async (event) => {
     })
     return {
       status: 'success',
-      data: getPagingData(users, limit, offset),
+      data: getPagingData(users, parseInt(params.page), limit),
     }
   } catch (e: unknown) {
     return e

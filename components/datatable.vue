@@ -2,7 +2,7 @@
 import axios from 'axios'
 import SkeletonTable from '~/components/skeleton-table.vue'
 
-const emits = defineEmits(['search'])
+const emits = defineEmits(['reloadTable'])
 
 const props = defineProps({
   columns: { type: [Array, Object], default: () => [] },
@@ -17,10 +17,10 @@ const props = defineProps({
   defaultSortDesc: { type: Boolean, default: false },
   is_fetch_on_init: { type: Boolean, default: true },
   is_loading: { type: Boolean, default: true },
+  pagination: { type: Object },
 })
 
 const ajaxData = ref(null)
-
 const currentPage = ref(1)
 const totalItemCount = ref(null)
 const totalFilteredItemCount = ref(null)
@@ -28,41 +28,11 @@ const itemsPerPage = ref(null)
 const sort = reactive({ by: null, desc: false })
 const search = ref('')
 const extraParams = ref({})
-const is_loading = ref(true)
-const is_fetching = ref(false)
+const is_loading = computed(()=>{
+  return props.is_loading
+})
 const is_failed = ref(false)
 const is_initiated = ref(false)
-
-watch(
-  () => props.is_loading,
-  (newValue, oldValue) => {
-    is_loading.value = newValue
-    console.log(newValue)
-  }
-)
-
-const currentItemPosition = computed(() => {
-  let cip = { start: 1, end: 1 }
-
-  if (props.is_ssp_mode) {
-    if (ajaxData.value !== null) {
-      cip.start = ajaxData.value.data.current_item_position_start
-      cip.end = ajaxData.value.data.current_item_position_end
-    }
-  } else {
-    if (itemsPerPage.value > 0) {
-      cip.start = (currentPage.value - 1) * itemsPerPage.value + 1
-      cip.start = cip.start < 0 ? 0 : cip.start
-      cip.end = currentPage.value * itemsPerPage.value
-      if (cip.end > totalFilteredItemCount.value)
-        cip.end = totalFilteredItemCount.value
-    } else {
-      cip.end = totalFilteredItemCount.value
-    }
-  }
-
-  return cip
-})
 
 const columnsFinal = computed(() => {
   let newColumns = []
@@ -95,20 +65,6 @@ const dataFinal = computed(() => {
         return a[by] < b[by] ? 1 : b[by] < a[by] ? -1 : 0
       return a[by] > b[by] ? 1 : b[by] > a[by] ? -1 : 0
     })
-
-    // if (search.value.length > 0)
-    //   dt = dt.filter((item) => {
-    //     for (let key in item) {
-    //       if (
-    //         item[key]
-    //           .toString()
-    //           .toLowerCase()
-    //           .search(search.value.toLowerCase()) >= 0
-    //       )
-    //         return true
-    //     }
-    //     return false
-    //   })
   }
 
   return dt
@@ -175,41 +131,7 @@ const reload = function () {
   }
 }
 
-const fetchData = function (options = {}) {
-  if (!props.is_ssp_mode) return false
-  if (is_fetching.value) return false
-  if (typeof props.url !== 'string') throw new Error('`url` is required.')
-
-  is_loading.value = true
-  is_fetching.value = true
-  is_failed.value = false
-
-  let params = getParams()
-
-  if (typeof options.params !== 'undefined') {
-    params = { ...params, ...options.params }
-  }
-
-  axios
-    .get(props.url, {
-      params,
-    })
-    .then((response) => {
-      ajaxData.value = response.data
-      totalItemCount.value = response.data.data.total_item_count ?? 0
-      totalFilteredItemCount.value =
-        response.data.data.total_filtered_item_count ?? 0
-      if (typeof options.success === 'function') options.success(response)
-    })
-    .catch((e) => {
-      console.log(e)
-      is_failed.value = true
-    })
-    .then(() => {
-      is_loading.value = false
-      is_fetching.value = false
-    })
-}
+const fetchData = function (options = {}) {}
 
 const sorting = function (db_name) {
   let the_column = columnsFinal.value.find((e) => e.db == db_name)
@@ -235,8 +157,6 @@ const getParams = function (override = null, is_return_url_params = false) {
     sortBy: sortFinal.value.by,
     sortDesc: sortFinal.value.desc ? 'true' : 'false',
   }
-
-  // if (search.value.length > 0) params.search = search.value
 
   params = { ...params, ...extraParams.value }
 
@@ -272,31 +192,17 @@ watch(itemsPerPage, () => {
 
 watch(sort, () => {
   if (!is_initiated.value) return
-
   reload()
 })
 
 let searchTimeout = null
 watch(search, () => {
-  if (props.is_ssp_mode) {
-    is_loading.value = true
-
-    if (searchTimeout !== null) clearTimeout(searchTimeout)
-
-    searchTimeout = setTimeout(() => {
-      currentPage.value = 1
-      fetchData(() => {
-        searchTimeout = null
-      })
-    }, 800)
-  } else {
-    // currentPage.value = 1
-    // totalFilteredItemCount.value = dataFinal.value.length
-    emits('search', search.value)
-  }
+  // is_loading.value = true
+  emits('reloadTable', search.value)
 })
 
 onMounted(async () => {
+  // is_loading.value = true
   if (itemsPerPage.value === null)
     itemsPerPage.value =
       props.defaultItemsPerPage ??
@@ -309,7 +215,7 @@ onMounted(async () => {
   if (props.is_ssp_mode) {
     if (props.is_fetch_on_init) fetchData()
   } else {
-    is_loading.value = false
+    // is_loading.value = false
     totalItemCount.value = totalFilteredItemCount.value = props.data.length
   }
 
@@ -462,13 +368,7 @@ defineExpose({
           </template>
           <template v-else>
             <template v-for="(e_data, index) in dataFinal" :key="index">
-              <tr
-                v-if="
-                  is_ssp_mode ||
-                  (index + 1 >= currentItemPosition.start &&
-                    index < currentItemPosition.end)
-                "
-              >
+              <tr>
                 <td
                   v-for="(e_col, index2) in columnsFinal"
                   class="whitespace-nowrap px-3 py-4 align-middle text-sm text-gray-500"
@@ -505,8 +405,8 @@ defineExpose({
                     <slot
                       :name="e_col.slotName"
                       :data="e_col.slotName == 'no' ? index : e_data[e_col.db]"
+                      :item="e_col.slotName == 'action' ? e_data : null"
                     ></slot>
-                    <!-- {{ e_data[e_col.db] }} -->
                   </template>
                   <template v-else>
                     {{ e_data[e_col.db] }}
@@ -549,13 +449,9 @@ defineExpose({
       <div class="mb-2 hidden min-[420px]:block md:mb-0">
         <p v-if="is_count_enable" class="text-xs text-gray-700 lg:text-sm">
           Showing
-          <span class="font-medium">{{ currentItemPosition.start }}</span> to
-          <span class="font-medium">{{ currentItemPosition.end }}</span> of
-          <span class="font-medium">{{ totalFilteredItemCount }}</span> results
-          <span v-if="totalFilteredItemCount !== totalItemCount"
-            >(filtered from
-            <span class="font-medium">{{ totalItemCount }}</span> items)</span
-          >
+          <span class="font-medium">{{ pagination.startItem }}</span> to
+          <span class="font-medium">{{ pagination.endItem }}</span> of
+          <span class="font-medium">{{ pagination.total }}</span> results
         </p>
       </div>
       <div>
@@ -591,7 +487,7 @@ defineExpose({
                 class="relative inline-flex cursor-pointer appearance-none items-center border border-gray-300 bg-white bg-none px-4 py-2 text-center text-sm font-medium text-gray-500 hover:bg-gray-50 focus:z-20"
                 :disabled="dataFinal.length <= 0 || is_loading"
               >
-                <template v-for="n in maxPage" :key="n">
+                <template v-for="n in pagination.totalPages" :key="n">
                   <option :value="n">{{ n }}</option>
                 </template>
               </select>

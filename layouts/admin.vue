@@ -1,8 +1,10 @@
 <template>
-  <Sidebar>
-    <slot />
-  </Sidebar>
-  <Footer />
+  <div>
+    <Sidebar>
+      <slot />
+    </Sidebar>
+    <Footer />
+  </div>
 </template>
 
 <script lang="ts" setup>
