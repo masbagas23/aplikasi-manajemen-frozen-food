@@ -12,7 +12,15 @@
           type="text"
           placeholder="Nama Lengkap"
           class="input input-bordered w-full"
+          :class="error?.fullName ? 'input-error' : ''"
         />
+        <div v-if="error?.fullName" class="label">
+          <span class="label-text-alt italic text-red-500">
+            <ul>
+              <li v-for="item in error?.fullName._errors">{{ item }}</li>
+            </ul>
+          </span>
+        </div>
       </label>
     </div>
     <!-- Email -->
@@ -55,6 +63,7 @@
         </div>
         <input
           type="file"
+          @change="handleFile"
           class="file-input file-input-bordered file-input-primary file-input-sm w-full"
         />
       </label>
@@ -76,13 +85,19 @@ const isLoadingRole = computed(() => {
 const roleCollections = computed(() => {
   return roleState.getCollectionList
 })
+const error = computed(() => {
+  return userState.errors
+})
 
 onMounted(async () => {
   await roleState.loadList()
 })
 
-onUnmounted(() => {
-  userState.resetForm
-})
+const handleFile = (event: Event) => {
+  const inputElement = event.target as HTMLInputElement
+  if (inputElement.files) {
+    userState.form.file = inputElement.files[0]
+  }
+}
 </script>
 <style></style>

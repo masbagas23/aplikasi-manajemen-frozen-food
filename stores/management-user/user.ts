@@ -1,32 +1,36 @@
 import { defineStore } from 'pinia'
+import { toast } from 'vue3-toastify'
 import { string } from 'zod'
 
-interface formUser {
+interface IFormUser {
   fullName: string
   email: string
   avaUrl: string
   roleId: number
+  file: null | File
   updatedAt: null | Date
 }
 
-interface userStateInterface {
+interface IUserStore {
   isLoading: boolean
   isShow: boolean
   collection: Array<Object>
   pagination: Object
   tableParams: { [key: string]: any }
-  form: formUser
+  form: IFormUser
+  errors: null | { [key: string]: any }
 }
 
 export const useUserStore = defineStore({
   id: 'userStore',
-  state: (): userStateInterface => ({
+  state: (): IUserStore => ({
     form: {
       fullName: '',
       email: '',
       avaUrl: '',
       roleId: 0,
       updatedAt: null,
+      file: null,
     },
     isLoading: true,
     isShow: true,
@@ -39,6 +43,7 @@ export const useUserStore = defineStore({
       asc: false,
       q: '',
     },
+    errors: null,
   }),
   actions: {
     resetForm() {
@@ -48,6 +53,7 @@ export const useUserStore = defineStore({
         avaUrl: '',
         roleId: 0,
         updatedAt: null,
+        file: null,
       }
     },
     //
@@ -88,6 +94,22 @@ export const useUserStore = defineStore({
       setTimeout(() => {
         this.isShow = false
       }, 1500)
+    },
+    async store(form: FormData) {
+      this.errors = null
+
+      const { token } = useAuth()
+      const res = await $fetch('/api/management-users', {
+        method: 'POST',
+        headers: {
+          authorization: token.value || '',
+        },
+        body: form,
+      }).catch((err) => {
+        this.errors = JSON.parse(err.statusMessage)
+      })
+      this.load()
+      return res
     },
   },
 })
